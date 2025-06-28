@@ -1,0 +1,20 @@
+{
+  "name": "hukuk-asistani-backend",
+  "version": "1.0.0",
+  "description": "Yapay Zeka Hukuk Danışmanı için arka plan sunucusu",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "@google/generative-ai": "^0.2.1",
+    "dotenv": "^16.4.5",
+    "langchain": "^0.1.28",
+    "@langchain/google-genai": "^0.0.11"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
