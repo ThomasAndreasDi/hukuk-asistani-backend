@@ -19,7 +19,7 @@ if (!GEMINI_API_KEY) {
 }
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const embeddings = new GoogleGenerativeAIEmbeddings({ apiKey: GEMINI_API_KEY });
 
 let vectorStore;
@@ -108,10 +108,10 @@ app.listen(PORT, () => {
     initializeVectorStore();
 });
 
-// Yanlış:
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-
-// Doğru (güncel modellerden biri):
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-// Veya alternatif:
-// const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+// GET istekleri için basit yanıt
+app.get('/api/chat', (req, res) => {
+  res.status(200).json({ 
+    status: 'active',
+    message: 'Backend çalışıyor. POST istekleri bekleniyor.' 
+  });
+});
