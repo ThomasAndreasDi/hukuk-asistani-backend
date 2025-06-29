@@ -133,8 +133,6 @@ app.listen(PORT, () => {
     initializeVectorStore();
 });
 
-<<<<<<< HEAD
-=======
 // PDF yerine TXT dosyalarını işleyecek şekilde güncelleyin
 const txtDirectory = path.join(__dirname, 'txt');
 if (!fs.existsSync(txtDirectory)) {
@@ -144,4 +142,4 @@ if (!fs.existsSync(txtDirectory)) {
 
 const txtFiles = fs.readdirSync(txtDirectory).filter(file => file.endsWith('.txt'));
 console.log(`Bulunan TXT dosyaları: ${txtFiles.join(', ')}`);
->>>>>>> ec5929a9a13b27ff953c6ec3f5b0b0655fb5675d
+
