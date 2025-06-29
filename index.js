@@ -132,3 +132,13 @@ app.listen(PORT, () => {
     console.log(`Sunucu ${PORT} portunda çalışıyor...`);
     initializeVectorStore();
 });
+
+// PDF yerine TXT dosyalarını işleyecek şekilde güncelleyin
+const txtDirectory = path.join(__dirname, 'txt');
+if (!fs.existsSync(txtDirectory)) {
+  console.log("Uyarı: TXT dosya dizini bulunamadı, oluşturuluyor...");
+  fs.mkdirSync(txtDirectory);
+}
+
+const txtFiles = fs.readdirSync(txtDirectory).filter(file => file.endsWith('.txt'));
+console.log(`Bulunan TXT dosyaları: ${txtFiles.join(', ')}`);
