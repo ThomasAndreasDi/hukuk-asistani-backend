@@ -6,13 +6,28 @@ const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const fs = require("fs");
 const path = require("path");
+const admin = require('firebase-admin');
 require('dotenv/config');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyAhPR8BKu5F2Pu4R82uM8zS__4qXMcjOB8";
+// --- Firebase Kurulumu ---
+try {
+    const serviceAccount = require('./serviceAccountKey.json');
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        databaseURL: "https://thomasandreas-ai.firebaseio.com" // PROJENİZİN URL'Sİ
+    });
+    console.log("Firebase başarıyla başlatıldı.");
+} catch (e) {
+    console.error("Firebase başlatma hatası:", e);
+}
+
+const db = admin.firestore();
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 if (!GEMINI_API_KEY) {
     console.error("Hata: GEMINI_API_KEY ortam değişkeni bulunamadı.");
     process.exit(1);
@@ -95,6 +110,19 @@ app.post('/api/chat', async (req, res) => {
         const result = await model.generateContent(promptWithContext);
         const response = await result.response;
         const responseText = response.text();
+        
+        // Firestore'a kaydetme işlemi
+        try {
+            await db.collection('conversations').add({
+                user_prompt: userQuery,
+                model_response: responseText,
+                timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                session_id: Math.random().toString(36).substr(2, 9) // Basit session ID
+            });
+            console.log("Konuşma Firestore'a kaydedildi.");
+        } catch (dbError) {
+            console.error("Firestore kayıt hatası:", dbError);
+        }
         
         res.json({ candidates: [{ content: { parts: [{ text: responseText }] } }] });
 
