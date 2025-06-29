@@ -6,35 +6,20 @@ const { GoogleGenerativeAIEmbeddings } = require("@langchain/google-genai");
 const { RecursiveCharacterTextSplitter } = require("langchain/text_splitter");
 const fs = require("fs");
 const path = require("path");
-const pdf = require("pdf-parse");
-const admin = require('firebase-admin');
 require('dotenv/config');
 
 const app = express();
 app.use(express.json());
 app.use(cors());
 
-// --- Firebase Kurulumu ---
-try {
-    const serviceAccount = require('./serviceAccountKey.json'); 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
-} catch (e) {
-    console.error("Firebase hizmet hesabı anahtarı bulunamadı veya hatalı.");
-}
-const db = admin.firestore();
-// -------------------------
-
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyAhPR8BKu5F2Pu4R82uM8zS__4qXMcjOB8";
 if (!GEMINI_API_KEY) {
     console.error("Hata: GEMINI_API_KEY ortam değişkeni bulunamadı.");
     process.exit(1);
 }
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-// DÜZENLEME: Model adı, en stabil sürüm olan "gemini-1.5-flash" olarak değiştirildi.
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" }); 
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 const embeddings = new GoogleGenerativeAIEmbeddings({ apiKey: GEMINI_API_KEY });
 
 let vectorStore;
@@ -42,23 +27,21 @@ let vectorStore;
 async function initializeVectorStore() {
     try {
         const allDocs = [];
-        const files = fs.readdirSync('./');
-        const pdfFiles = files.filter(file => path.extname(file).toLowerCase() === '.pdf');
+        const txtFiles = fs.readdirSync('./txt').filter(file => file.endsWith('.txt'));
 
-        if (pdfFiles.length === 0) {
-            console.warn("Uyarı: Projede işlenecek PDF dosyası bulunamadı.");
+        if (txtFiles.length === 0) {
+            console.warn("Uyarı: TXT dosya dizininde işlenecek dosya bulunamadı.");
             return;
         }
-        console.log(`İşlenecek PDF dosyaları: ${pdfFiles.join(', ')}`);
+        console.log(`İşlenecek TXT dosyaları: ${txtFiles.join(', ')}`);
 
-        for (const pdfFile of pdfFiles) {
-            console.log(`İşleniyor: ${pdfFile}...`);
-            const pdfPath = `./${pdfFile}`;
-            const dataBuffer = fs.readFileSync(pdfPath);
-            const pdfData = await pdf(dataBuffer);
+        for (const txtFile of txtFiles) {
+            console.log(`İşleniyor: ${txtFile}...`);
+            const txtPath = `./txt/${txtFile}`;
+            const text = fs.readFileSync(txtPath, 'utf8');
             
             const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1500, chunkOverlap: 200 });
-            const docs = await splitter.createDocuments([pdfData.text]);
+            const docs = await splitter.createDocuments([text]);
             allDocs.push(...docs);
         }
         
@@ -71,9 +54,17 @@ async function initializeVectorStore() {
     }
 }
 
+app.get('/api/chat', (req, res) => {
+    res.status(200).json({ 
+        status: 'active',
+        message: 'Backend çalışıyor. POST istekleri bekleniyor.',
+        timestamp: new Date().toISOString()
+    });
+});
+
 app.post('/api/chat', async (req, res) => {
     if (!vectorStore) {
-        return res.status(503).json({ error: "Sunucu henüz hazır değil, PDF işleniyor. Lütfen birkaç dakika sonra tekrar deneyin." });
+        return res.status(503).json({ error: "Sunucu henüz hazır değil, TXT dosyaları işleniyor. Lütfen birkaç dakika sonra tekrar deneyin." });
     }
 
     try {
@@ -85,7 +76,7 @@ app.post('/api/chat', async (req, res) => {
 
         const promptWithContext = `
             Sen, Türkiye Cumhuriyeti kanunları üzerine uzmanlaşmış bir yapay zeka hukuk asistanısın.
-            Görevin, sana verilen PDF belgesindeki bilgilere dayanarak cevap vermektir.
+            Görevin, sana verilen TXT belgesindeki bilgilere dayanarak cevap vermektir.
             
             **KESİN KURALLAR:**
             1.  Kullanıcının sorusuna cevap vermek için **SADECE ve SADECE** sana aşağıda verilen 'BAĞLAM' metnini kullan. Kendi genel bilgini veya hafızandaki bilgileri **KESİNLİKLE KULLANMA**.
@@ -105,20 +96,6 @@ app.post('/api/chat', async (req, res) => {
         const response = await result.response;
         const responseText = response.text();
         
-        if (responseText && db) {
-            try {
-                const userPrompt = conversationHistory.slice(-1)[0].parts[0].text;
-                await db.collection('conversations').add({
-                    user_prompt: userPrompt,
-                    model_response: responseText,
-                    timestamp: admin.firestore.FieldValue.serverTimestamp()
-                });
-                console.log("Konuşma başarıyla veritabanına kaydedildi.");
-            } catch (dbError) {
-                console.error("Veritabanı Kayıt Hatası:", dbError);
-            }
-        }
-        
         res.json({ candidates: [{ content: { parts: [{ text: responseText }] } }] });
 
     } catch (error) {
@@ -132,14 +109,3 @@ app.listen(PORT, () => {
     console.log(`Sunucu ${PORT} portunda çalışıyor...`);
     initializeVectorStore();
 });
-
-// PDF yerine TXT dosyalarını işleyecek şekilde güncelleyin
-const txtDirectory = path.join(__dirname, 'txt');
-if (!fs.existsSync(txtDirectory)) {
-  console.log("Uyarı: TXT dosya dizini bulunamadı, oluşturuluyor...");
-  fs.mkdirSync(txtDirectory);
-}
-
-const txtFiles = fs.readdirSync(txtDirectory).filter(file => file.endsWith('.txt'));
-console.log(`Bulunan TXT dosyaları: ${txtFiles.join(', ')}`);
-
