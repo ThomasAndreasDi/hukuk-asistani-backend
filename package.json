@@ -1,7 +1,7 @@
 {
   "name": "hukuk-asistani-backend",
   "version": "1.0.0",
-  "description": "Yapay Zeka Hukuk Danışmanı için arka plan sunucusu",
+  "description": "RAG destekli Gemini sohbet uygulaması için arka plan sunucusu",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -9,11 +9,12 @@
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.19.2",
-    "@google/generative-ai": "^0.2.1",
-    "dotenv": "^16.4.5",
-    "langchain": "^0.1.28",
+    "firebase-admin": "^11.5.0",
+    "node-fetch": "^2.6.7",
+    "pdf-parse": "^1.1.1",
     "@langchain/google-genai": "^0.0.11",
-    "pdf-parse": "^1.1.1"
+    "langchain": "^0.1.28",
+    "dotenv": "^16.4.5"
   },
   "engines": {
     "node": "18.x"
