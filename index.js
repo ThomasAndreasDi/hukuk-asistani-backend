@@ -107,3 +107,11 @@ app.listen(PORT, () => {
     console.log(`Sunucu ${PORT} portunda çalışıyor...`);
     initializeVectorStore();
 });
+
+// Yanlış:
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+
+// Doğru (güncel modellerden biri):
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+// Veya alternatif:
+// const model = genAI.getGenerativeModel({ model: "gemini-pro" });
