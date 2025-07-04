@@ -42,27 +42,60 @@ let vectorStore;
 async function initializeVectorStore() {
     try {
         const allDocs = [];
-        const files = fs.readdirSync('./');
-        const pdfFiles = files.filter(file => path.extname(file).toLowerCase() === '.pdf');
+        let filesProcessed = 0;
 
-        if (pdfFiles.length === 0) {
-            console.warn("Uyarı: Projede işlenecek PDF dosyası bulunamadı.");
+        // Check for TXT files in txt directory
+        const txtDirectory = path.join(__dirname, 'txt');
+        try {
+            if (!fs.existsSync(txtDirectory)) {
+                console.log("TXT dosya dizini bulunamadı, oluşturuluyor...");
+                fs.mkdirSync(txtDirectory, { recursive: true });
+            }
+
+            const txtFiles = fs.readdirSync(txtDirectory).filter(file => file.endsWith('.txt'));
+            console.log(`Bulunan TXT dosyaları: ${txtFiles.length > 0 ? txtFiles.join(', ') : 'Hiç TXT dosyası bulunamadı'}`);
+
+            for (const txtFile of txtFiles) {
+                console.log(`İşleniyor: ${txtFile}...`);
+                const txtPath = path.join(txtDirectory, txtFile);
+                const text = fs.readFileSync(txtPath, 'utf8');
+                
+                const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1500, chunkOverlap: 200 });
+                const docs = await splitter.createDocuments([text]);
+                allDocs.push(...docs);
+                filesProcessed++;
+            }
+        } catch (txtError) {
+            console.warn("TXT dosyaları işlenirken uyarı:", txtError.message);
+        }
+
+        // Check for PDF files in root directory
+        try {
+            const files = fs.readdirSync('./');
+            const pdfFiles = files.filter(file => path.extname(file).toLowerCase() === '.pdf');
+            console.log(`Bulunan PDF dosyaları: ${pdfFiles.length > 0 ? pdfFiles.join(', ') : 'Hiç PDF dosyası bulunamadı'}`);
+
+            for (const pdfFile of pdfFiles) {
+                console.log(`İşleniyor: ${pdfFile}...`);
+                const pdfPath = `./${pdfFile}`;
+                const dataBuffer = fs.readFileSync(pdfPath);
+                const pdfData = await pdf(dataBuffer);
+                
+                const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1500, chunkOverlap: 200 });
+                const docs = await splitter.createDocuments([pdfData.text]);
+                allDocs.push(...docs);
+                filesProcessed++;
+            }
+        } catch (pdfError) {
+            console.warn("PDF dosyaları işlenirken uyarı:", pdfError.message);
+        }
+
+        if (filesProcessed === 0) {
+            console.warn("Uyarı: Hiç dosya işlenemedi. PDF veya TXT dosyalarının mevcut olduğundan emin olun.");
             return;
         }
-        console.log(`İşlenecek PDF dosyaları: ${pdfFiles.join(', ')}`);
-
-        for (const pdfFile of pdfFiles) {
-            console.log(`İşleniyor: ${pdfFile}...`);
-            const pdfPath = `./${pdfFile}`;
-            const dataBuffer = fs.readFileSync(pdfPath);
-            const pdfData = await pdf(dataBuffer);
-            
-            const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1500, chunkOverlap: 200 });
-            const docs = await splitter.createDocuments([pdfData.text]);
-            allDocs.push(...docs);
-        }
         
-        console.log("Vektör veritabanı tüm belgelerle oluşturuluyor...");
+        console.log(`Vektör veritabanı ${filesProcessed} dosya ile oluşturuluyor...`);
         vectorStore = await MemoryVectorStore.fromDocuments(allDocs, embeddings);
         console.log("Vektör veritabanı başarıyla oluşturuldu ve hazır.");
 
@@ -132,14 +165,3 @@ app.listen(PORT, () => {
     console.log(`Sunucu ${PORT} portunda çalışıyor...`);
     initializeVectorStore();
 });
-
-// PDF yerine TXT dosyalarını işleyecek şekilde güncelleyin
-const txtDirectory = path.join(__dirname, 'txt');
-if (!fs.existsSync(txtDirectory)) {
-  console.log("Uyarı: TXT dosya dizini bulunamadı, oluşturuluyor...");
-  fs.mkdirSync(txtDirectory);
-}
-
-const txtFiles = fs.readdirSync(txtDirectory).filter(file => file.endsWith('.txt'));
-console.log(`Bulunan TXT dosyaları: ${txtFiles.join(', ')}`);
-
